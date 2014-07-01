@@ -4,11 +4,11 @@ require './rsa_vulnerable'
 require './rsa_attack'
 
 include ContinuedFraction   #Continued fractions module
-include RsaVulnerable   #Vulnerable Key  module
+include RsaVulnerable   #Vulnerable Key module
 include RsaAttack #RSA Wiener low exponent attack
 
 # Calculate a modular exponentiation eg: b^p mod m
-# http://en.wikipedia.org/wiki/Modular_exponentiation
+
 def mod_pow(base, power, mod)
  result = 1
  while power > 0
@@ -21,6 +21,7 @@ end
 
 # Make a random bignum of size bits, with the highest two and low bit set
 # http://www.di-mgt.com.au/rsa_alg.html#note1
+
 def create_random_bignum(bits, range = nil)
   if range.nil?
     middle = (1..bits-3).map{rand()>0.5 ? '1':'0'}.join
@@ -32,6 +33,7 @@ def create_random_bignum(bits, range = nil)
 end
 
 # Create random numbers until it finds a prime
+
 def create_random_prime(bits,range = nil)
   while true
     val = create_random_bignum(bits, range)
@@ -40,21 +42,21 @@ def create_random_prime(bits,range = nil)
 end
 
 # Do the extended euclidean algorithm: ax + by = gcd(a,b)
-# http://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Recursive_method_2
+
 def extended_gcd(a, b)
   return [0,1] if a % b == 0
   x,y = extended_gcd(b, a % b)
   [y, x-y*(a / b)]
 end
 
-# Get the modular multiplicative inverse of a modulo b: a^-1 equiv x (mod m)
-# http://en.wikipedia.org/wiki/Modular_multiplicative_inverse
+# Get d the modular multiplicative inverse of e mod(phi)
+# thank to the extended euclidean algorithm
+# a*x = 1 (mod m)
+
 def get_d(p,q,e)
-  # From wiki: The extended Euclidean algorithm is particularly useful when a and b are coprime,
-  # since x is the modular multiplicative inverse of a modulo b.
   phi = (p-1)*(q-1)
   x,y = extended_gcd(e,phi)
-  x += phi if x<0 # Have to add the modulus if it returns negative, to get the modular multiplicative inverse
+  x += phi if x<0 # Have to add the modulus if it returns negative
   x
 end
 
@@ -79,15 +81,19 @@ end
     puts "Testing Wiener Attack on RSA"
 
     3.times do
-         e, n, d =gen_v_keys(1024)
+        e, n, d, p, q =gen_v_keys(1024)
         puts "(e,n) is ( %i , %i )" % [e, n]
         puts "\n d is : %i " % d
+        puts "\r\n"
+        puts "\n Created p is : %i, q is : %i " % [ p , q ]
 
-        found_d = rsa_attack(e, n)
+        found_d, r1, r2= rsa_attack(e, n)
 
         if d == found_d
             puts "Attack Successful"
-            puts "d = %i  \nfound_d = %i " % [d, found_d]
+            puts "d = %i  \nfound_d = %i " % [ d, found_d ]
+            puts "\r\n"
+            puts "Factorized n: p= %i   q= %i " % [ r1 , r2 ]
         else
             puts  "Attack Fails..."
         end
@@ -96,16 +102,16 @@ end
 end
 
 
-# Do the RSA test
+# RSA test
 
-#Make two big primes: p and q
+#Generate two big primes: p and q
 puts "Generating primes..."
 p = create_random_prime(512)
 q = create_random_prime(512)
  puts "Prime p:\r\n %i" % p
  puts "Prime q:\r\n %i" % q
 
-# Make n (the public key) now
+# Make n now
 n = p*q
 
 # Public exponent
@@ -114,8 +120,7 @@ e = 0x10001   #decimal 65537 --> 2^16+1
 # Private exponent
 d = get_d(p,q,e)
 
-puts "Exponent:\r\n %x" % e
-puts "Public key (n):\r\n %x" % n
+puts "Public key (n,e):\r\n (%i, %i)" % [ n, e ]
 puts "Private key (d):\r\n %x" % d
 
 # Lets encrypt a message using e and n:
@@ -126,10 +131,10 @@ puts "Message hex:\r\n %x" % m
 puts "Encrypted:\r\n %x" % c
 
 # Now decrypt it using d and n:
-a = mod_pow(c,d,n) # Decrypting is: m = c^e mod n
+a = mod_pow(c,d,n) # Decrypting is: m = c^d mod n
 puts "Decrypted:\r\n " + bignum_to_str(a)
 
-#Testing Attack
+#RSA Attack test
 
 rsa_attack_test
 
